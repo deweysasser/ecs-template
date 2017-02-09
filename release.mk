@@ -120,7 +120,7 @@ $(RELEASE_NOTES):  .release/title .release/changes .release/separator .release/o
 .release/master-checkout:
 	git checkout $$(cat .release/current-branch) 
 
-info:
+info::
 	@echo VERSION=$(VERSION)
 	@echo VERSION_STRING=$(VERSION_STRING)
 	@echo VERSION_TAG=$(VERSION_TAG)
