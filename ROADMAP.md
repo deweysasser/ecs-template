@@ -1,9 +1,10 @@
 = Plans and Intentions =
 
-* make system that supports stacks, taskdefs, etc
+* (DONE)make system that supports stacks
 * EFS file system
-* ECS Cluster
 * Security groups allowing ECS to access EFS
+* ECS Cluster
+* make system supports taskdefs
 * ECS mounts EFS
 * Security group to allow outside access to ECS (parameters?)
 * ECS cluster starts NBP on every node
