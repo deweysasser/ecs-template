@@ -1,7 +1,7 @@
 = Plans and Intentions =
 
 * (DONE)make system that supports stacks
-* EFS file system
+* (DONE)EFS file system
 * Security groups allowing ECS to access EFS
 * ECS Cluster
 * make system supports taskdefs
