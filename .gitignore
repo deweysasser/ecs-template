@@ -196,3 +196,4 @@ bin/*
 .kitchen.local.yml
 .running
 templates
+local.mk
