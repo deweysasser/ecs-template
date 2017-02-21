@@ -1,0 +1,8 @@
+{
+    "taskDefinition": "${TASK_PREFIX}hello", 
+    "desiredCount": 2, 
+    "deploymentConfiguration": {
+        "maximumPercent": 200, 
+        "minimumHealthyPercent": 100
+    }
+}

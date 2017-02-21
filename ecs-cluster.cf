@@ -1,0 +1,400 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: ECS Cluster
+
+Parameters:
+
+  Prefix:
+    Type: String
+    Description: A unique human-readable prefix for resources in this stack. Will be prepended to Name tags for stack resources.
+
+  CreatedBy:
+    Type: String
+
+  PerformanceMode:
+    Type: String
+    AllowedValues:
+      - generalPurpose
+      - maxIO
+    Default: generalPurpose
+
+  VpcId:
+    Type: String
+    Description: ID of the VPC to use
+
+  SubnetA:
+    Type: String
+    Description:  ID of first subnet in which to run the cluster
+
+  SubnetB:
+    Type: String
+    Description:  ID of second subnet in which to run the cluster
+
+  SubnetC:
+    Type: String
+    Description:  ID of second subnet in which to run the cluster
+
+  KeyName:
+    Type: String
+
+  MinSize:
+    Type: Number
+    Default: 1
+
+  MaxSize:
+    Type: Number
+    Default: 6
+
+  EcsInstanceType:
+    Type: String
+    Default: t2.micro
+
+  EcsVolumeSize:
+    Type: Number
+    Default: 20
+
+  EcsVolumeType:
+    Type: String
+    Default: gp2
+
+
+Mappings:
+  AWSRegionToAMI:
+    us-east-1:
+      AMIID: ami-eca289fb
+    us-east-2:
+      AMIID: ami-446f3521
+    us-west-1:
+      AMIID: ami-9fadf8ff
+    us-west-2:
+      AMIID: ami-7abc111a
+    eu-west-1:
+      AMIID: ami-a1491ad2
+    eu-central-1:
+      AMIID: ami-54f5303b
+    ap-northeast-1:
+      AMIID: ami-9cd57ffd
+    ap-southeast-1:
+      AMIID: ami-a900a3ca
+    ap-southeast-2:
+      AMIID: ami-5781be34
+
+Resources:
+
+  EcsIamRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+
+  EcsPolicy:            
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: InstancePolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - route53:ListHostedZones
+              - route53:ListResourceRecordSets
+              - route53:ChangeResourceRecordSets
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - ecs:StartTask
+              - ecs:CreateCluster
+              - ecs:DeregisterContainerInstance
+              - ecs:DiscoverPollEndpoint
+              - ecs:Poll
+              - ecs:RegisterContainerInstance
+              - ecs:StartTelemetrySession
+              - ecs:Submit*
+              - ecr:GetAuthorizationToken
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - ec2:DescribeNetworkInterfaces
+              - ec2:AttachNetworkInterface
+              - ec2:DetachNetworkInterface
+            Resource: "*"
+      Roles:
+        - !Ref EcsIamRole
+
+  EcsIamProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: /
+      Roles:
+        - !Ref EcsIamRole
+
+  EcsEfsMountTargetSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: EFS mount targets
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: CreatedBy
+          Value: !Ref CreatedBy
+        - Key: Name
+          Value: !Join [ "", [ !Ref Prefix, "-EcsEfsMountTargetSecurityGroup" ] ]
+
+  EcsInstanceSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: ECS Instances
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: CreatedBy
+          Value: !Ref CreatedBy
+        - Key: Name
+          Value: !Join [ "", [ !Ref Prefix, "-EcsInstanceSecurityGroup" ] ]
+
+  InternetToInstanceSSH:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !Ref EcsInstanceSecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: "0.0.0.0/0"
+
+  EcsEfsClientSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: EFS client machines
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: CreatedBy
+          Value: !Ref CreatedBy
+        - Key: Name
+          Value: !Join [ "", [ !Ref Prefix, "-EcsEfsClientSecurityGroup" ] ]
+
+  EcsApplicationSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: ECS Applications
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: CreatedBy
+          Value: !Ref CreatedBy
+        - Key: Name
+          Value: !Join [ "", [ !Ref Prefix, "-EcsApplicationSecurityGroup" ] ]
+
+
+  EcsEfsClientToEfsMountTarget:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !Ref EcsEfsMountTargetSecurityGroup
+      IpProtocol: tcp
+      FromPort: 2049
+      ToPort: 2049
+      SourceSecurityGroupId: !Ref EcsEfsClientSecurityGroup
+
+  EcsApplicationWebIngress:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !Ref EcsApplicationSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: "0.0.0.0/0"
+
+
+  EcsApplicationSshIngress:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !Ref EcsApplicationSecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: "0.0.0.0/0"
+
+
+  FileSystem:
+    Type: "AWS::EFS::FileSystem"
+    Properties:
+      PerformanceMode: !Ref PerformanceMode
+      FileSystemTags:
+        - Key: CreatedBy
+          Value: !Ref CreatedBy
+        - Key: Name
+          Value: !Ref Prefix
+
+
+  MountTargetA:
+    Type: "AWS::EFS::MountTarget"
+    Properties:
+      FileSystemId: !Ref FileSystem
+      SubnetId: !Ref SubnetA
+      SecurityGroups:
+        - !Ref EcsEfsMountTargetSecurityGroup
+        
+  MountTargetB:
+    Type: "AWS::EFS::MountTarget"
+    Properties:
+      FileSystemId: !Ref FileSystem
+      SubnetId: !Ref SubnetB
+      SecurityGroups:
+        - !Ref EcsEfsMountTargetSecurityGroup
+
+  MountTargetC:
+    Type: "AWS::EFS::MountTarget"
+    Properties:
+      FileSystemId: !Ref FileSystem
+      SubnetId: !Ref SubnetC
+      SecurityGroups:
+        - !Ref EcsEfsMountTargetSecurityGroup
+
+  EcsCluster:
+    Type: "AWS::ECS::Cluster"
+    Properties:
+      ClusterName: !Join [ "", [!Ref Prefix, "-cluster" ]]
+
+  ProxyTask:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Join ['', [!Ref Prefix, -proxy]]
+      ContainerDefinitions:
+      - Name: nginx
+        Image: nginx
+        PortMappings:
+        - ContainerPort: 80
+          Protocol: tcp
+          HostPort: 80
+        MemoryReservation: 16
+        Memory: 64
+        Essential: true
+        DockerLabels:
+          proxy.notify: ''
+        MountPoints:
+        - ReadOnly: true
+          ContainerPath: /etc/nginx/conf.d
+          SourceVolume: conf
+        - ReadOnly: true
+          ContainerPath: /usr/share/nginx/html
+          SourceVolume: html
+      - Name: updater
+        Image: deweysasser/name-proxy-server
+        Command:
+        - --route53
+        - --aws-local-ip
+        Essential: true
+        MemoryReservation: 64
+        Memory: 128
+        MountPoints:
+        - ReadOnly: false
+          ContainerPath: /var/run/docker.sock
+          SourceVolume: socket
+        - SourceVolume: conf
+          ContainerPath: /etc/nginx/conf.d
+          ReadOnly: false
+        - ReadOnly: false
+          ContainerPath: /usr/share/nginx/html
+          SourceVolume: html
+      Volumes:
+      - Host:
+          SourcePath: /var/run/docker.sock
+        Name: socket
+      - Name: conf
+      - Name: html
+
+  EcsLaunchConfiguration:
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Properties:
+      ImageId: !FindInMap [AWSRegionToAMI, !Ref 'AWS::Region', AMIID]
+      InstanceType: !Ref EcsInstanceType
+      AssociatePublicIpAddress: true
+      IamInstanceProfile:
+        !Ref EcsIamProfile
+      KeyName: !Ref KeyName
+      SecurityGroups: 
+        - !Ref EcsEfsClientSecurityGroup
+        - !Ref EcsInstanceSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvdl
+          Ebs:
+            VolumeSize: !Ref EcsVolumeSize
+            VolumeType: !Ref EcsVolumeType
+            DeleteOnTermination: "true"
+      UserData:
+        "Fn::Base64":
+          !Sub |
+            #!/bin/bash
+            # Set up local file system, preserving existing docker state
+            yum install -y rsync
+            service docker stop
+            mkfs -t ext4 /dev/xvdl
+            mv /var/lib/docker /var/lib/docker.old
+            mkdir -p /var/lib/docker
+            echo /dev/xvdl /var/lib/docker ext4 defaults 0 0 >> /etc/fstab
+            mount -a
+            rsync -rav /var/lib/docker.old/ /var/lib/docker/
+            rm -rf /var/lib/docker.old
+            # File system and instance specific settings
+            ECS_CLUSTER=${EcsCluster}
+            EFS_FID=${FileSystem}
+            MOUNTPOINT=/cluster
+            NODE_TASK=${ProxyTask}
+            # Versions
+            # Introspection -- you probably don't need to change this.
+            AWS_AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+            AWS_REGION=$(echo $AWS_AZ | sed 's/[a-z]$//')
+            INSTANCE_USER=ec2-user
+            yum update -y
+            yum install -y nfs-utils 
+            yum install -y aws-cli
+            yum install -y jq
+            # ECS Configuration
+            echo "ECS_CLUSTER=${!ECS_CLUSTER}" >> /etc/ecs/ecs.config
+            # Mount the EFS file system
+            mkdir -p ${!MOUNTPOINT}
+            chown ${!INSTANCE_USER}:${!INSTANCE_USER} ${!MOUNTPOINT}
+            echo "${!EFS_FID}.efs.${!AWS_REGION}.amazonaws.com:/ ${!MOUNTPOINT} nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 0 0" >> /etc/fstab
+            mount -a -t nfs4
+            # Now (re)start the services
+            service docker start
+            echo "Starting ECS"
+            start ecs || exit 1
+            # Now every-node task -- arrange for this to start on reboot as well
+            if [ -n "${!NODE_TASK:-}" ] ; then
+            # Delay to allow the cluster instance data to initialize
+            sleep 10s
+            instance_arn=$(curl -s http://localhost:51678/v1/metadata | jq -r '. | .ContainerInstanceArn' | awk -F/ '{print $NF}' )
+            aws ecs start-task --cluster ${!ECS_CLUSTER} --task-definition ${!NODE_TASK} --container-instances $instance_arn --region ${!AWS_REGION}
+            fi
+
+  EcsAutoScalingGroup:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Properties:
+      LaunchConfigurationName: !Ref EcsLaunchConfiguration
+      MinSize: !Ref MinSize
+      MaxSize: !Ref MaxSize
+      DesiredCapacity: !Ref MinSize
+      MetricsCollection:
+        - Granularity: 1Minute
+      Tags:
+        - Key: CreatedBy
+          Value: !Ref CreatedBy
+          PropagateAtLaunch: "true"
+        - Key: Name
+          Value: !Join [ "", [ !Ref Prefix, "-", !Ref "AWS::StackName", "-AutoScalingGroup" ] ]
+          PropagateAtLaunch: "true"
+      VPCZoneIdentifier:
+        - !Ref SubnetA
+        - !Ref SubnetB
+        - !Ref SubnetC
+
+Outputs:
+  EcsInstanceAsgName:
+    Description: Name of the Autoscaling group (used by AWS automation)
+    Value: !Ref EcsAutoScalingGroup

@@ -197,3 +197,8 @@ bin/*
 .running
 templates
 local.mk
+service.template
+taskdef.template
+hello.taskdef
+hello.service
+ecr-registry.mk
