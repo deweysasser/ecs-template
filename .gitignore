@@ -199,6 +199,6 @@ templates
 local.mk
 service.template
 taskdef.template
-hello.taskdef
-hello.service
+webserver.taskdef
+webserver.service
 ecr-registry.mk

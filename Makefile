@@ -34,7 +34,7 @@ include makefiles/aws-ecs.mk
 
 ENVSUBST=envsubst
 
-all:: $(SERVICESTATE)/hello.service
+all:: $(SERVICESTATE)/webserver.service
 
 export REGISTRY_BASE IMAGE_PREFIX TASK_PREFIX
 %: %.template
@@ -44,7 +44,7 @@ export REGISTRY_BASE IMAGE_PREFIX TASK_PREFIX
 %.taskdef: %.taskdef.template; 	$(ENVSUBST) < $? > $@
 %.service: %.service.template; 	$(ENVSUBST) < $? > $@
 
-$(SERVICESTATE)/hello.service: $(CFSTATE)/$(PREFIX)-ecs-cluster.cf $(STATE)/$(IMAGE_PREFIX)hello.pushed
+$(SERVICESTATE)/webserver.service: $(CFSTATE)/$(PREFIX)-ecs-cluster.cf $(STATE)/$(IMAGE_PREFIX)webserver.pushed
 
 
 ######################################################################

@@ -1,5 +1,5 @@
 {
-    "taskDefinition": "${TASK_PREFIX}hello", 
+    "taskDefinition": "${TASK_PREFIX}webserver", 
     "desiredCount": 2, 
     "deploymentConfiguration": {
         "maximumPercent": 200, 

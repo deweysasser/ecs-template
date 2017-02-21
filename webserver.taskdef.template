@@ -1,0 +1,29 @@
+{
+   "containerDefinitions" : [
+      {
+         "image" : "${REGISTRY_BASE}/${IMAGE_PREFIX}webserver:latest",
+         "name" : "webserver",
+         "essential" : true,
+	 "memoryReservation": 32,
+         "mountPoints": [
+             {
+                 "sourceVolume": "html", 
+                 "containerPath": "/usr/share/nginx/html", 
+                 "readOnly": true
+             }
+         ], 
+         "dockerLabels" : {
+            "proxy.host" : "www.ecs-example.com"
+         }
+      }
+   ],
+   "volumes" : [
+      {
+         "name" : "html",
+         "host" : {
+            "sourcePath" : "/cluster/webserver/html"
+         }
+      }
+   ]
+
+}
