@@ -1,0 +1,37 @@
+{
+   "volumes" : [
+      {
+         "name" : "docker",
+         "host" : {
+            "sourcePath" : "/var/run/docker.sock"
+         }
+      }
+   ],
+   "containerDefinitions" : [
+      {
+        "name": "login",
+	"image": "docker",
+	"memoryReservation" : 16,
+ 	"command": [
+                "login",
+                "-uUSER",
+                "-pPASS",
+                "quay.dgs.io"
+ 	], 
+         "mountPoints" : [
+            {
+               "sourceVolume" : "docker",
+               "containerPath" : "/var/run/docker.sock",
+               "readOnly" : false
+            }
+         ],
+	 "essential": false
+      },
+      {
+        "name": "main",
+	"image": "private-image",
+	"memoryReservation" : 16,
+	 "essential": true
+      }
+   ]
+}
