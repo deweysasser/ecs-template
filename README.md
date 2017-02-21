@@ -7,8 +7,31 @@ all nodes are running a proxy forwardward that can both forward web
 requests and update route53 (therefore eliminating the need for an ELB
 for each service).
 
-Quickstart
-----------
+INSTALL
+-------
+
+### Prerequisites
+
+* Clone this project
+* ensure you have an appropriate profile in your ~/.aws/configuration.
+  This project uses "sandbox" by default
+* add a line with "PROFILE=<your profile" to local.mk
+* if your AWS account has more than one VPC, create an
+  "ecs-cluster.params" file that looks like below.  If you only have 1
+  VPC with at least 3 subnets in it, the ecs-cluster.params file will be
+  automatically created.
+
+### Parameters File
+
+     VpcId=vpc-12345
+     SubnetA=subnet-12345
+     SubnetB=subnet-23456
+     SubnetC=subnet-34567
+     KeyName=My SSH Key
+
+
+### Building the cluster
+
 
 Run 'make' twice (with a long delay in between)
 
@@ -29,6 +52,15 @@ Wait for the stack creation to complete, then re-run make.
 the full stack creation to work.  Once the cluster is created it will
 accept the service definition and will run the service when it's
 able.)
+
+Destroying the cluster
+----------------------
+
+'make destroy CONFIRM=true' will take down the cloudformation stack
+and destroy all associated resources.
+
+Caveat: It will not currently destroy the cluster if there are any
+services defined (see Issue #1).
 
 Persisting state across the cluster
 -----------------------------------
