@@ -287,7 +287,7 @@ Resources:
         Image: deweysasser/name-proxy-server
         Command:
         - --route53
-        - --aws-local-ip
+        - --aws-public-ip
         Essential: true
         MemoryReservation: 64
         Memory: 128
