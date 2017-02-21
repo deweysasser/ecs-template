@@ -12,6 +12,10 @@ Quickstart
 
 Run 'make' twice (with a long delay in between)
 
+When done, you'll have a cluster with 2 services: a jenkins (singleton
+container) and a web server (2 containers).  Both services put their
+data in EFS.
+
 Unfortunately, due to the asynchronous nature of cloudformation and
 the peduclarities of aws cli updates (e.g. missing
 'stack-create-complete' commands), it is not straigt-forward to wait
