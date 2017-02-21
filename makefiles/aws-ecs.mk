@@ -13,12 +13,29 @@ TASKSTATE=$(STATE)/$(PROFILE)
 # all *targets* by examining the sources
 TASKDEFS=$(wildcard *.taskdef)
 SERVICES=$(wildcard *.service)
+AUTOCREATE_TASKDEFS=$(shell grep -l AUTOCREATE.SERVICE $(TASKDEFS))
+
+
+ECS_TARGETS=$(foreach s,$(SERVICES),$(SERVICESTATE)/$t) $(foreach t,$(TASKDEFS),$(TASKSTATE)/$(TASK_PREFIX)$t) $(foreach s,$(AUTOCREATE_TASKDEFS),$(SERVICESTATE)/$(subst .taskdef,.autoservice,$s))
+
+all:: $(ECS_TARGETS)
 
 # How to deploy a task
 $(TASKSTATE)/$(TASK_PREFIX)%.taskdef: %.taskdef 
-	$(ECS) register-task-definition --family "$(NAME)" --cli-input-json file://$< --query "taskDefinition.[family,revision]"
+	$(ECS) register-task-definition --family "$(TASK_PREFIX)$*" --cli-input-json file://$< --query "taskDefinition.[family,revision]"
 	@touch $@
 
+# Deploy an autocreated service
+$(SERVICESTATE)/%.autoservice: NAME=$(notdir $(basename $@))
+$(SERVICESTATE)/%.autoservice: $(TASKSTATE)/$(TASK_PREFIX)%.taskdef
+	if [ -f $(SERVICESTATE)/$(NAME).autoservice ] ; then \
+	  echo "Updating autoservice $(NAME)" ;\
+	   $(ECS) update-service --service $(NAME) --task-definition $(TASK_PREFIX)$(NAME) --desired-count 1 --cluster $(CLUSTER)  --query "service.deployments[0].{desired:desiredCount,running:runningCount}" ;\
+	else \
+	  echo "Creating autoservice $(NAME)" ;\
+	   $(ECS) create-service --service-name $(NAME) --cluster $(CLUSTER) --task-definition $(TASK_PREFIX)$(NAME) --desired-count 1 ; \
+	fi
+	touch $@ $(SERVICESTATE)/$(NAME).service 
 
 define drain-service
 	   $(ECS) update-service --service $(NAME) --desired-count 0 --cluster $(CLUSTER)  --query "service.deployments[0].{desired:desiredCount,running:runningCount}"; \
@@ -50,18 +67,47 @@ taskdef.template:
 cleanup:: $(foreach v,$(shell echo *.taskdef),cleanup/$v)
 
 cleanup/%.taskdef:
-	   $(ECSTEXT) list-task-definitions --family-prefix $(notdir $*) | awk '{print $$2}' | head -n -3 | xargs -r -n 1 $(ECSTEXT) deregister-task-definition --query "['remove',taskDefinition.[family,':',revision]]" --task-definition; 
+	@echo "Cleaning $*.taskdef"
+	@$(ECSTEXT) list-task-definitions --family-prefix $(notdir $*) | awk '{print $$2}' | head -n -3 | xargs -r -n 1 $(ECSTEXT) deregister-task-definition --query "['remove',taskDefinition.[family,':',revision]]" --task-definition; 
 
 drain/%.service:
 	-test -f $(SERVICESTATE)/$(notdir $@) && $(ECS) update-service --service $(notdir $*) --desired-count 0 --cluster $(CLUSTER) --query "service.[desiredCount]"
 
 remove/%.service: drain/%.service
 	-test -f $(SERVICESTATE)/$(notdir $@) && $(ECS) delete-service --service $(notdir $*) --cluster $(CLUSTER) --query "service.serviceArn" && sleep 20s
-	rm -f $(SERVICESTATE)/$(notdir $@) $(SERVICESTATE)/$(notdir $*).taskservice
+	rm -f $(SERVICESTATE)/$(notdir $@) $(SERVICESTATE)/$(notdir $*).autoservice
+
+# Load the initial state
+
+#ifneq ($(wildcard $(SERVICESTATE)), $(SERVICESTATE))
+$(STATE):: $(SERVICESTATE)/.services-recorded $(TASKSTATE)/.taskdefs-recorded
+#endif
+
+$(SERVICESTATE)/.services-recorded:
+	@mkdir -p $(dir $@)
+	@echo "Inspecting defined services"
+	@for arn in $$( $(ECSTEXT) list-services --cluster ${CLUSTER} | tr -d '\r' | cut -f 2); do \
+	   name=$$(echo $$arn | cut -d / -f 2 | cut -d : -f 1 ) ;\
+	    echo "  - " $$name ;\
+	    touch $(dir $2)/$$name.service ;\
+	done
+	@touch $@
+
+$(TASKSTATE)/.taskdefs-recorded:
+	@mkdir -p $(dir $@)
+	@echo "Inspecting defined tasks"
+	@for name in $$( $(ECSTEXT) list-task-definitions | tr -d '\r' | cut -d / -f 2 | cut -d : -f 1 | sort -u); do \
+	    echo "  - " $$name ;\
+	    touch $(dir $2)/$$name.taskdef ;\
+	done
+	@touch $@
+
+
 
 info::
 	@echo TASKDEFS=$(TASKDEFS)
-	@echo TASKSERVICES=$(TASKSERVICES)
+	@echo AUTOSERVICES=$(AUTOCREATE_TASKDEFS)
 	@echo SERVICES=$(SERVICES)
+	@echo TARGETS=$(ECS_TARGETS)
 
 
