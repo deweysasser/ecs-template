@@ -344,7 +344,7 @@ Resources:
             ECS_CLUSTER=${EcsCluster}
             EFS_FID=${FileSystem}
             MOUNTPOINT=/cluster
-            NODE_TASK=${ProxyTask}
+            NODE_TASKS=${ProxyTask}
             # Versions
             # Introspection -- you probably don't need to change this.
             AWS_AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
@@ -366,11 +366,13 @@ Resources:
             echo "Starting ECS"
             start ecs || exit 1
             # Now every-node task -- arrange for this to start on reboot as well
-            if [ -n "${!NODE_TASK:-}" ] ; then
+            if [ -n "${!NODE_TASKS:-}" ] ; then
             # Delay to allow the cluster instance data to initialize
             sleep 10s
             instance_arn=$(curl -s http://localhost:51678/v1/metadata | jq -r '. | .ContainerInstanceArn' | awk -F/ '{print $NF}' )
-            aws ecs start-task --cluster ${!ECS_CLUSTER} --task-definition ${!NODE_TASK} --container-instances $instance_arn --region ${!AWS_REGION}
+            for task in ${!NODE_TASKS}; do
+               aws ecs start-task --cluster ${!ECS_CLUSTER} --task-definition ${!task} --container-instances $instance_arn --region ${!AWS_REGION}
+            done
             fi
 
   EcsAutoScalingGroup:
