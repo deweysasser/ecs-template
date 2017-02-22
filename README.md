@@ -85,6 +85,24 @@ proxied to your container automatically.  If you have an appropriate
 Route53 zone, entries will be automatically maintained as containers
 are added.
 
+Private Repositories
+--------------------
+
+Each node runs a ["docker
+login"](https://hub.docker.com/r/deweysasser/docker-login/) task with
+it's monitor director mapped to '/cluster/docker-login'.  Any
+non-comment, non-blank line in /cluster/docker-login/login.txt will be
+passed as a separate command line to "docker login".  You can use this
+to log in to one or more private repositories.
+
+Example file:
+
+     # Put this in /cluster/docker-login/login.txt
+     # Log in to docker hub as user USER1
+     -u USER1 -p PASS1
+     # Log in to quay.io as user USER2
+     -u USER2 -p PASS2 quay.io
+
 Task and Services
 -----------------
 

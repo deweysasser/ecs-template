@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: ECS Cluster
+Description: ECS Cluster with EFS, name based proxy web server and Rt53 updates
 
 Parameters:
 
@@ -308,6 +308,31 @@ Resources:
       - Name: conf
       - Name: html
 
+  LoginTask:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Join ['', [!Ref Prefix, -login]]
+      ContainerDefinitions:
+      - Name: command
+        Image: deweysasser/docker-login
+        MemoryReservation: 16
+        Essential: true
+        MountPoints:
+        - ReadOnly: true
+          ContainerPath: /monitor
+          SourceVolume: data
+        - ReadOnly: true
+          ContainerPath: /var/run/docker.sock
+          SourceVolume: socket
+      Volumes:
+      - Host:
+          SourcePath: /var/run/docker.sock
+        Name: socket
+      - Host:
+          SourcePath: /cluster/docker-commands
+        Name: data
+
+
   EcsLaunchConfiguration:
     Type: "AWS::AutoScaling::LaunchConfiguration"
     Properties:
@@ -344,7 +369,7 @@ Resources:
             ECS_CLUSTER=${EcsCluster}
             EFS_FID=${FileSystem}
             MOUNTPOINT=/cluster
-            NODE_TASKS=${ProxyTask}
+            NODE_TASKS="${ProxyTask} ${LoginTask}"
             # Versions
             # Introspection -- you probably don't need to change this.
             AWS_AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
