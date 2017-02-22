@@ -271,7 +271,7 @@ Resources:
         - ContainerPort: 80
           Protocol: tcp
           HostPort: 80
-        MemoryReservation: 16
+        MemoryReservation: 12
         Memory: 64
         Essential: true
         DockerLabels:
@@ -289,7 +289,7 @@ Resources:
         - --route53
         - --aws-public-ip
         Essential: true
-        MemoryReservation: 64
+        MemoryReservation: 48
         Memory: 128
         MountPoints:
         - ReadOnly: false
@@ -316,6 +316,7 @@ Resources:
       - Name: command
         Image: deweysasser/docker-login
         MemoryReservation: 16
+	Memory: 64
         Essential: true
         MountPoints:
         - ReadOnly: true
