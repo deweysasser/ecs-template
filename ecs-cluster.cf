@@ -260,11 +260,23 @@ Resources:
     Properties:
       ClusterName: !Join [ "", [!Ref Prefix, "-cluster" ]]
 
-  ProxyTask:
+  HostTask:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Join ['', [!Ref Prefix, -proxy]]
+      Family: !Join ['', [!Ref Prefix, -host-functions]]
       ContainerDefinitions:
+      - Name: login
+        Image: deweysasser/docker-login
+        MemoryReservation: 1
+        Memory: 16
+        Essential: true
+        MountPoints:
+        - ReadOnly: true
+          ContainerPath: /monitor
+          SourceVolume: monitor
+        - ReadOnly: false
+          ContainerPath: /var/run/docker.sock
+          SourceVolume: socket
       - Name: nginx
         Image: nginx
         PortMappings:
@@ -305,6 +317,9 @@ Resources:
       - Host:
           SourcePath: /var/run/docker.sock
         Name: socket
+      - Host:
+          SourcePath: /cluster/docker-login
+        Name: monitor
       - Name: conf
       - Name: html
 
@@ -344,7 +359,7 @@ Resources:
             ECS_CLUSTER=${EcsCluster}
             EFS_FID=${FileSystem}
             MOUNTPOINT=/cluster
-            NODE_TASK=${ProxyTask}
+            NODE_TASK=${HostTask}
             # Versions
             # Introspection -- you probably don't need to change this.
             AWS_AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)

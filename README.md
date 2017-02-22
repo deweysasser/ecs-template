@@ -85,6 +85,22 @@ proxied to your container automatically.  If you have an appropriate
 Route53 zone, entries will be automatically maintained as containers
 are added.
 
+Private Docker Repositories
+---------------------------
+
+The host management task runs a "docker login" proxy.  Create a file
+with appropriate login credentials for each private repository that
+you want the host to access in /cluster/docker-login.  "docker login"
+will be automtically run with each line of the file.
+
+An example file might be:
+
+    -u quay_user -p password quay.io
+    -u docker_user -p password
+
+See [docker-login](https://hub.docker.com/r/deweysasser/docker-login/)
+for details.
+
 Task and Services
 -----------------
 
