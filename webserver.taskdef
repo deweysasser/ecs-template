@@ -1,7 +1,7 @@
 {
    "containerDefinitions" : [
       {
-         "image" : "${REGISTRY_BASE}/${IMAGE_PREFIX}webserver:latest",
+         "image" : "nginx",
          "name" : "webserver",
          "essential" : true,
 	 "memoryReservation": 32,
