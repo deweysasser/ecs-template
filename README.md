@@ -31,20 +31,57 @@ for each service).
 
 ### Building a cluster
 
-* Run `make` twice (with a long delay in between). See [Why wait between make calls below](Why-wait-between-make-calls?) below.
+* Run `make` twice (with a long delay in between). See [Why wait
+  between make calls below](#Why-wait-between-make-calls?) below.
 
-Launching a cluster requires running `make` twice. The first time will launch a cloudformation stack defined by `ecs-cluster.cf`. The second run will load all `.taskdef` files in the directory you are running into your environment. After initial creation you will have a cluster running your defined services. In addition you will have several task defintions.
+Launching a cluster requires running `make` twice. The first time will
+launch a cloudformation stack defined by `ecs-cluster.cf`. The second
+run will load all `.taskdef` files in the directory you are running
+into your environment. After initial creation you will have a cluster
+running your defined services. In addition you will have several task
+defintions.
 
-If you do this with no modifications you'll have a cluster with 2 services: a jenkins (singleton container) and a web server (2 containers, `nginx` and `name-based-proxy`).  
+If you do this with no modifications you'll have a cluster with 1
+service: a web server, comprising 2 task instances (2 containers).
+
+Additionally, each node will run:
+* a [`name-based-proxy`](#name-based-proxy) task 
+* [`docker-login`](#private-docker-repositories) task
+
+## Running Services
+
+The cluster is an [Amazon ECS](https://aws.amazon.com/ecs/) cluster with additional capabilities. Thus, services deployed on the cluster are deployed using normal Amazon definitions of [task-definitions](http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html) and [services](http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_services.html).
+
+For convenience, each file in the current directory ending in
+`.taskdef` or `.service` will be loaded by the `make` system into your
+cluster.
+
+NOTE: While services are specific to a cluster, task-definitions are
+specific to a region, not a cluster, and thus `make` will use the
+cluster prefix on all of your task definitions.  Your services should
+make allowance for this.  
+
+See the [`webserver.service.template`](webserver.service.template)
+file for an example.
 
 ## Auto created services
 
-[Taskdef](#.taskdef-files) files containing `"AUTOCREATE.SERVICE": ""` in their `ContainerDefinition` will automatically have n ECS service attached to it. If you wish to run multiple tasks in a given service you would write a `.service` files to define those needs.
+[Taskdef](#.taskdef-files) files containing `AUTOCREATE.SERVICE`
+anywhere in their `ContainerDefinition` will automatically have an ECS
+service constructed for it as a convenience to avoid excessive
+boilerplate service files. If you wish to run multiple tasks in a
+given service you would write a `.service` files to define those
+needs.
+
+You can put the `AUTOCREATE.SERVICE` token as an extra label in the
+`dockerLables` section (or anywhere else).
 
 
 ## EFS cluster data persistence
 
-Containers launched with the ecs-template have access to a shared `EFS` volume. You can mount folders to this volume in the `.taskdef` by including the following:
+Containers launched with the ecs-template have access to a shared
+`EFS` volume. You can mount folders to this volume in the `.taskdef`
+by including the following:
 
 ```
 "volumes" : [
@@ -57,10 +94,13 @@ Containers launched with the ecs-template have access to a shared `EFS` volume. 
    ]
 ```
 
+All containers in the cluster share the data under /cluster, so you
+must take steps to ensure that containers do not conflict accessing
+these files.
 
 ### .taskdef tiles
 
-For AWS documentation go [here](http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html). There is a simplified verstion of the `.taskdef` file below. In addition you can define multiple containers to run and execute arbitrary actions. For instance adding the following before the main image configuration prepares the file system for `jenkins`:
+For AWS documentation go [here](http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html). There is a simplified version of the `.taskdef` file below. In addition you can define multiple containers to run and execute arbitrary actions. For instance adding the following before the main image configuration prepares the file system for `jenkins`:
 
     {
       "containerDefinitions" : [
@@ -90,7 +130,8 @@ For AWS documentation go [here](http://docs.aws.amazon.com/AmazonECS/latest/deve
 
 #### Example `.taskdef`
 
-A `.taskdef` file defines the task to be launched in ECS. It requires a name, image and `memoryReservation`.
+A `.taskdef` file defines the task to be launched in ECS. It requires
+a name, image and `memoryReservation`.
 
     {
       "containerDefinitions" : [
@@ -128,7 +169,7 @@ A `.taskdef` file defines the task to be launched in ECS. It requires a name, im
 
 Unfortunately, due to the asynchronous nature of cloudformation and
 the percularities of aws cli updates (e.g. missing
-'stack-create-complete' commands), it is not straigt-forward to wait
+'stack-create-complete' commands), it is not straight-forward to wait
 until the stack is fully created.  Thus, the first time you run
 'make', the stack creation will start but service deployment will fail
 (because the cluster has not yet been created).
@@ -166,7 +207,13 @@ are added.
 
 ### Private Docker Repositories
 
-The host management task (defined in `ecs-cluster.cf`) runs a `docker login` proxy.  Create a file with appropriate login credentials for each private repository that you want the host to access in `/cluster/docker-login`. `docker login` will be automatically run with each line of the file.
+The host management task (defined in
+[`ecs-cluster.cf`](ecs-cluster.cf) runs a `docker login` agent.
+
+Create a file named `/cluster/docker-login/login.txt` with each line
+containing a `docker login` command line with appropriate login
+credentials. `docker login` will be automatically run with each line
+of the file.
 
 An example file might be:
 
@@ -176,12 +223,9 @@ An example file might be:
 See [docker-login](https://hub.docker.com/r/deweysasser/docker-login/)
 for details.
 
-### Task and Services
+### Task and Services Templates
 
-Type 'make templates' to get templates for task and services.  These
-are *exactly* the Amazon ECS templates for the repsective types.
+As a convience to get started with tasks and services, type 'make
+templates' to get templates for task and services.  These are
+*exactly* the Amazon ECS templates for the repsective types.
 
-As a speical case, to facilitate running singleton task services, if
-the taskdef has "AUTOCREATE.SERVICE" anywhere in the body of the task
-definition, a service will be created to run that task without the
-need for a separate .service file.
