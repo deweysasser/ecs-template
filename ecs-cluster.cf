@@ -316,7 +316,7 @@ Resources:
       - Name: command
         Image: deweysasser/docker-login
         MemoryReservation: 16
-	Memory: 64
+        Memory: 64
         Essential: true
         MountPoints:
         - ReadOnly: true

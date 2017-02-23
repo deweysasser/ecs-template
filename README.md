@@ -208,7 +208,7 @@ are added.
 ### Private Docker Repositories
 
 The host management task (defined in
-[`ecs-cluster.cf`](ecs-cluster.cf) runs a `docker login` agent.
+[`ecs-cluster.cf`](ecs-cluster.cf)) runs a `docker login` agent.
 
 Create a file named `/cluster/docker-login/login.txt` with each line
 containing a `docker login` command line with appropriate login
