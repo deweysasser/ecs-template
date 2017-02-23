@@ -44,9 +44,6 @@ export REGISTRY_BASE IMAGE_PREFIX TASK_PREFIX
 %.taskdef: %.taskdef.template; 	$(ENVSUBST) < $? > $@
 %.service: %.service.template; 	$(ENVSUBST) < $? > $@
 
-$(SERVICESTATE)/webserver.service: $(CFSTATE)/$(PREFIX)-ecs-cluster.cf $(STATE)/$(IMAGE_PREFIX)webserver.pushed
-
-
 ######################################################################
 # Bootstrap ourselves by looking up VPC/Subnets/Etc
 ######################################################################
