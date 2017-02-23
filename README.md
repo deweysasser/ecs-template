@@ -217,8 +217,12 @@ of the file.
 
 An example file might be:
 
-    -u quay_user -p password quay.io
-    -u docker_user -p password
+```
+# Log in to quay.io
+-u quay_user -p password quay.io
+# Log in to the docker hub
+-u docker_user -p password
+```
 
 See [docker-login](https://hub.docker.com/r/deweysasser/docker-login/)
 for details.
