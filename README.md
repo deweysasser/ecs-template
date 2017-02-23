@@ -31,8 +31,7 @@ for each service).
 
 ### Building a cluster
 
-* Run `make` twice (with a long delay in between). See [Why wait
-  between make calls below](#Why-wait-between-make-calls?) below.
+* Run `make` 
 
 Launching a cluster requires running `make` twice. The first time will
 launch a cloudformation stack defined by `ecs-cluster.cf`. The second
@@ -164,22 +163,6 @@ a name, image and `memoryReservation`.
       ]
     }
 
-
-#### Why wait between make calls?
-
-Unfortunately, due to the asynchronous nature of cloudformation and
-the percularities of aws cli updates (e.g. missing
-'stack-create-complete' commands), it is not straight-forward to wait
-until the stack is fully created.  Thus, the first time you run
-'make', the stack creation will start but service deployment will fail
-(because the cluster has not yet been created).
-
-Wait for the stack creation to complete, then re-run make.
-
-(Actually, you only have to wait until the cluster is created, not for
-the full stack creation to work.  Once the cluster is created it will
-accept the service definition and will run the service when it's
-able.)
 
 ### Destroying the cluster
 
