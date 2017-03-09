@@ -207,7 +207,7 @@ An example file might be:
 -u docker_user -p password
 ```
 
-See [docker-login](https://hub.docker.com/r/deweysasser/docker-login/)
+See [docker-login](https://hub.docker.com/r/deweysasser/docker-ecs-login/)
 for details.
 
 ### Task and Services Templates

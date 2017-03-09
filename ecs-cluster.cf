@@ -314,7 +314,7 @@ Resources:
       Family: !Join ['', [!Ref Prefix, -login]]
       ContainerDefinitions:
       - Name: command
-        Image: deweysasser/docker-login
+        Image: deweysasser/docker-ecs-login:latest
         MemoryReservation: 16
         Memory: 64
         Essential: true
@@ -325,6 +325,9 @@ Resources:
         - ReadOnly: true
           ContainerPath: /var/run/docker.sock
           SourceVolume: socket
+        - ReadOnly: false
+          ContainerPath: /etc/ecs
+          SourceVolume: ecs
       Volumes:
       - Host:
           SourcePath: /var/run/docker.sock
@@ -332,6 +335,9 @@ Resources:
       - Host:
           SourcePath: /cluster/docker-commands
         Name: data
+      - Host:
+          SourcePath: /etc/ecs
+        Name: ecs
 
 
   EcsLaunchConfiguration:
@@ -357,6 +363,12 @@ Resources:
           !Sub |
             #!/bin/bash
             # Set up local file system, preserving existing docker state
+            curl https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm > /tmp/epel.rpm
+            rpm -i /tmp/epel.rpm
+            yum update -y
+            yum install -y nfs-utils 
+            yum install -y aws-cli
+            yum install -y jq
             yum install -y rsync
             service docker stop
             mkfs -t ext4 /dev/xvdl
@@ -376,10 +388,8 @@ Resources:
             AWS_AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
             AWS_REGION=$(echo $AWS_AZ | sed 's/[a-z]$//')
             INSTANCE_USER=ec2-user
-            yum update -y
-            yum install -y nfs-utils 
-            yum install -y aws-cli
-            yum install -y jq
+            # for inotifywatch
+            yum --enablerepo=epel install -y inotify-tools
             # ECS Configuration
             echo "ECS_CLUSTER=${!ECS_CLUSTER}" >> /etc/ecs/ecs.config
             # Mount the EFS file system
@@ -399,6 +409,7 @@ Resources:
             for task in ${!NODE_TASKS}; do
                aws ecs start-task --cluster ${!ECS_CLUSTER} --task-definition ${!task} --container-instances $instance_arn --region ${!AWS_REGION} --query "failures"
             done
+            inotifywait -m -e MODIFY -e MOVED_TO  /etc/ecs | while read dir op arg; do if [ $arg == "ecs.config" ] ; then    stop ecs; start ecs; fi; done
             fi
 
   EcsAutoScalingGroup:
