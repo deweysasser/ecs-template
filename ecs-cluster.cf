@@ -386,7 +386,7 @@ Resources:
             mkdir -p ${!MOUNTPOINT}
             chown ${!INSTANCE_USER}:${!INSTANCE_USER} ${!MOUNTPOINT}
             echo "${!EFS_FID}.efs.${!AWS_REGION}.amazonaws.com:/ ${!MOUNTPOINT} nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 0 0" >> /etc/fstab
-            mount -a -t nfs4
+            mount -a -t nfs4 || exit 1
             # Now (re)start the services
             service docker start
             echo "Starting ECS"
@@ -397,7 +397,7 @@ Resources:
             sleep 10s
             instance_arn=$(curl -s http://localhost:51678/v1/metadata | jq -r '. | .ContainerInstanceArn' | awk -F/ '{print $NF}' )
             for task in ${!NODE_TASKS}; do
-               aws ecs start-task --cluster ${!ECS_CLUSTER} --task-definition ${!task} --container-instances $instance_arn --region ${!AWS_REGION}
+               aws ecs start-task --cluster ${!ECS_CLUSTER} --task-definition ${!task} --container-instances $instance_arn --region ${!AWS_REGION} --query "failures"
             done
             fi
 
