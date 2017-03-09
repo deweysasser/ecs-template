@@ -426,3 +426,8 @@ Outputs:
   EcsInstanceAsgName:
     Description: Name of the Autoscaling group (used by AWS automation)
     Value: !Ref EcsAutoScalingGroup
+
+
+  EcsInstanceSecurityGroup:
+   Description: Name of the security group for all cluster instances
+   Value: !Ref EcsInstanceSecurityGroup
