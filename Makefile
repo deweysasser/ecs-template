@@ -44,6 +44,12 @@ export REGISTRY_BASE IMAGE_PREFIX TASK_PREFIX
 %.taskdef: %.taskdef.template; 	$(ENVSUBST) < $? > $@
 %.service: %.service.template; 	$(ENVSUBST) < $? > $@
 
+######################################################################
+# Cluster dependencies
+######################################################################
+
+$(CFSTATE)/$(PREFIX)-ecs-cluster.cf: $(CFSTATE)/$(PREFIX)-ecs-storage.cf
+
 
 ######################################################################
 # Bootstrap ourselves by looking up VPC/Subnets/Etc
@@ -82,3 +88,10 @@ $(STATE)/$(PROFILE)/keys.txt:
 	@aws --profile $(PROFILE) --output text ec2 describe-key-pairs --query "KeyPairs[*].[KeyName]" > $@
 	@if [ $$(wc -l < $@) -ne 1 ] ; then echo "Found no key pairs.  No SSH possible"; exit 1; fi
 endif
+
+ifneq ($(wildcard ecs-storage.params),ecs-storage.params)
+ecs-storage.params: ecs-cluster.params
+	echo "Extracting parameters from $? for $@"
+	@egrep "(VpcId|Subnet[ABC])=" $? > $@
+endif
+
