@@ -89,9 +89,11 @@ $(STATE)/$(PROFILE)/keys.txt:
 	@if [ $$(wc -l < $@) -ne 1 ] ; then echo "Found no key pairs.  No SSH possible"; exit 1; fi
 endif
 
-ifneq ($(wildcard ecs-storage.params),ecs-storage.params)
+# Ensure that the ecs-storage parms are always updated for the networking in ecs-cluster.params
 ecs-storage.params: ecs-cluster.params
 	echo "Extracting parameters from $? for $@"
-	@egrep "(VpcId|Subnet[ABC])=" $? > $@
-endif
+	egrep "(VpcId|Subnet[ABC])=" $? > $@.tmp
+	test -f $@ && egrep -v "(VpcId|Subnet[ABC])=" $@ >> $@.tmp || true
+	mv -f $@.tmp $@
+
 
