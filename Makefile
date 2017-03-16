@@ -5,10 +5,20 @@
 # The default target -- other makefiles will add dependencies
 all::
 
+# Change this if you're using a production cluster
+STORAGE_DELETION_POLICY?=Delete
+#STORAGE_DELETION_POLICY=Retain
+
 CLUSTER=$(PREFIX)-cluster
 
 # Local variable overrides
 -include local.mk
+
+export STORAGE_DELETION_POLICY
+
+# Ensure that the storage stack is created and dependencies are understood
+CFFILES+=ecs-storage.cf
+ecs-storage.cf: ecs-storage.cf.template
 
 # Some standard make targets
 include makefiles/standard.mk

@@ -69,7 +69,7 @@ Resources:
 
   FileSystem:
     Type: "AWS::EFS::FileSystem"
-    DeletionPolicy: Retain
+    DeletionPolicy: ${STORAGE_DELETION_POLICY}
     Properties:
       PerformanceMode: !Ref PerformanceMode
       FileSystemTags:
