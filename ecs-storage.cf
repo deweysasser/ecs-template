@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Shared storage for corresponding ECS cluster.  DELETE->DATA LOSS!
+
+Parameters:
+
+  Prefix:
+    Type: String
+    Description: A unique human-readable prefix for resources in this stack. Will be prepended to Name tags for stack resources.
+
+  CreatedBy:
+    Type: String
+
+  PerformanceMode:
+    Type: String
+    AllowedValues:
+      - generalPurpose
+      - maxIO
+    Default: generalPurpose
+
+  VpcId:
+    Type: String
+    Description: ID of the VPC to use
+
+  SubnetA:
+    Type: String
+    Description:  ID of first subnet in which to run the cluster
+
+  SubnetB:
+    Type: String
+    Description:  ID of second subnet in which to run the cluster
+
+  SubnetC:
+    Type: String
+    Description:  ID of second subnet in which to run the cluster
+
+
+Resources:
+
+  EcsEfsMountTargetSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: EFS mount targets
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: CreatedBy
+          Value: !Ref CreatedBy
+        - Key: Name
+          Value: !Join [ "", [ !Ref Prefix, "-EcsEfsMountTargetSecurityGroup" ] ]
+
+  EcsEfsClientSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: EFS client machines
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: CreatedBy
+          Value: !Ref CreatedBy
+        - Key: Name
+          Value: !Join [ "", [ !Ref Prefix, "-EcsEfsClientSecurityGroup" ] ]
+
+  EcsEfsClientToEfsMountTarget:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !Ref EcsEfsMountTargetSecurityGroup
+      IpProtocol: tcp
+      FromPort: 2049
+      ToPort: 2049
+      SourceSecurityGroupId: !Ref EcsEfsClientSecurityGroup
+
+  FileSystem:
+    Type: "AWS::EFS::FileSystem"
+    DeletionPolicy: Retain
+    Properties:
+      PerformanceMode: !Ref PerformanceMode
+      FileSystemTags:
+        - Key: CreatedBy
+          Value: !Ref CreatedBy
+        - Key: Name
+          Value: !Join ["", [!Ref Prefix, "-storage"]]
+
+
+  MountTargetA:
+    Type: "AWS::EFS::MountTarget"
+    Properties:
+      FileSystemId: !Ref FileSystem
+      SubnetId: !Ref SubnetA
+      SecurityGroups:
+        - !Ref EcsEfsMountTargetSecurityGroup
+        
+  MountTargetB:
+    Type: "AWS::EFS::MountTarget"
+    Properties:
+      FileSystemId: !Ref FileSystem
+      SubnetId: !Ref SubnetB
+      SecurityGroups:
+        - !Ref EcsEfsMountTargetSecurityGroup
+
+  MountTargetC:
+    Type: "AWS::EFS::MountTarget"
+    Properties:
+      FileSystemId: !Ref FileSystem
+      SubnetId: !Ref SubnetC
+      SecurityGroups:
+        - !Ref EcsEfsMountTargetSecurityGroup
+
+Outputs:
+  ClientSecurityGroup:
+    Description:  Security group for any client which mount the EFS storage
+    Value: !Ref EcsEfsClientSecurityGroup
+    Export: 
+       Name: !Sub "${AWS::StackName}-ClientSecurityGroup"
+
+  FileSystemID:
+    Description: ID of the EFS FileSystem
+    Value: !Ref FileSystem
+    Export: 
+       Name: !Sub "${AWS::StackName}-FileSystemID"

@@ -56,7 +56,6 @@ Parameters:
     Type: String
     Default: gp2
 
-
 Mappings:
   AWSRegionToAMI:
     us-east-1:
@@ -137,17 +136,6 @@ Resources:
       Roles:
         - !Ref EcsIamRole
 
-  EcsEfsMountTargetSecurityGroup:
-    Type: "AWS::EC2::SecurityGroup"
-    Properties:
-      GroupDescription: EFS mount targets
-      VpcId: !Ref VpcId
-      Tags:
-        - Key: CreatedBy
-          Value: !Ref CreatedBy
-        - Key: Name
-          Value: !Join [ "", [ !Ref Prefix, "-EcsEfsMountTargetSecurityGroup" ] ]
-
   EcsInstanceSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
@@ -168,17 +156,6 @@ Resources:
       ToPort: 22
       CidrIp: "0.0.0.0/0"
 
-  EcsEfsClientSecurityGroup:
-    Type: "AWS::EC2::SecurityGroup"
-    Properties:
-      GroupDescription: EFS client machines
-      VpcId: !Ref VpcId
-      Tags:
-        - Key: CreatedBy
-          Value: !Ref CreatedBy
-        - Key: Name
-          Value: !Join [ "", [ !Ref Prefix, "-EcsEfsClientSecurityGroup" ] ]
-
   EcsApplicationSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
@@ -190,15 +167,6 @@ Resources:
         - Key: Name
           Value: !Join [ "", [ !Ref Prefix, "-EcsApplicationSecurityGroup" ] ]
 
-
-  EcsEfsClientToEfsMountTarget:
-    Type: "AWS::EC2::SecurityGroupIngress"
-    Properties:
-      GroupId: !Ref EcsEfsMountTargetSecurityGroup
-      IpProtocol: tcp
-      FromPort: 2049
-      ToPort: 2049
-      SourceSecurityGroupId: !Ref EcsEfsClientSecurityGroup
 
   EcsApplicationWebIngress:
     Type: "AWS::EC2::SecurityGroupIngress"
@@ -218,42 +186,6 @@ Resources:
       FromPort: 22
       ToPort: 22
       CidrIp: "0.0.0.0/0"
-
-
-  FileSystem:
-    Type: "AWS::EFS::FileSystem"
-    Properties:
-      PerformanceMode: !Ref PerformanceMode
-      FileSystemTags:
-        - Key: CreatedBy
-          Value: !Ref CreatedBy
-        - Key: Name
-          Value: !Ref Prefix
-
-
-  MountTargetA:
-    Type: "AWS::EFS::MountTarget"
-    Properties:
-      FileSystemId: !Ref FileSystem
-      SubnetId: !Ref SubnetA
-      SecurityGroups:
-        - !Ref EcsEfsMountTargetSecurityGroup
-        
-  MountTargetB:
-    Type: "AWS::EFS::MountTarget"
-    Properties:
-      FileSystemId: !Ref FileSystem
-      SubnetId: !Ref SubnetB
-      SecurityGroups:
-        - !Ref EcsEfsMountTargetSecurityGroup
-
-  MountTargetC:
-    Type: "AWS::EFS::MountTarget"
-    Properties:
-      FileSystemId: !Ref FileSystem
-      SubnetId: !Ref SubnetC
-      SecurityGroups:
-        - !Ref EcsEfsMountTargetSecurityGroup
 
   EcsCluster:
     Type: "AWS::ECS::Cluster"
@@ -350,7 +282,7 @@ Resources:
         !Ref EcsIamProfile
       KeyName: !Ref KeyName
       SecurityGroups: 
-        - !Ref EcsEfsClientSecurityGroup
+        - "Fn::ImportValue": !Sub "${Prefix}-ecs-storage-ClientSecurityGroup"
         - !Ref EcsInstanceSecurityGroup
       BlockDeviceMappings:
         - DeviceName: /dev/xvdl
@@ -380,7 +312,7 @@ Resources:
             rm -rf /var/lib/docker.old
             # File system and instance specific settings
             ECS_CLUSTER=${EcsCluster}
-            EFS_FID=${FileSystem}
+            EFS_FID=${!ImportValue !Sub "${Prefix}-ecs-storage-FileSystemID"}
             MOUNTPOINT=/cluster
             NODE_TASKS="${ProxyTask} ${LoginTask}"
             # Versions
