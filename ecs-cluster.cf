@@ -89,6 +89,24 @@ Resources:
             Principal:
               Service:
                 - ec2.amazonaws.com
+                - ecs.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+
+  EcsManagementRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+                - ec2.amazonaws.com
+                - ecs.amazonaws.com
+                - application-autoscaling.amazonaws.com
             Action:
               - sts:AssumeRole
       Path: /
@@ -128,6 +146,45 @@ Resources:
             Resource: "*"
       Roles:
         - !Ref EcsIamRole
+
+
+  EcsManagementPolicy:            
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: ManagementPolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - route53:ListHostedZones
+              - route53:ListResourceRecordSets
+              - route53:ChangeResourceRecordSets
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - ecs:StartTask
+              - ecs:CreateCluster
+              - ecs:DeregisterContainerInstance
+              - ecs:DiscoverPollEndpoint
+              - ecs:Poll
+              - ecs:RegisterContainerInstance
+              - ecs:StartTelemetrySession
+              - ecs:Describe*
+              - ecs:Submit*
+              - ecs:UpdateService
+              - ecr:GetAuthorizationToken
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - ec2:DescribeNetworkInterfaces
+              - ec2:AttachNetworkInterface
+              - ec2:DetachNetworkInterface
+            Resource: "*"
+      Roles:
+        - !Ref EcsManagementRole
 
   EcsIamProfile:
     Type: "AWS::IAM::InstanceProfile"
@@ -272,6 +329,49 @@ Resources:
         Name: ecs
 
 
+  ProxyService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 0 
+      PlacementConstraints: 
+        - Type: distinctInstance
+      TaskDefinition: !Ref ProxyTask
+
+  LoginService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 0 
+      PlacementConstraints: 
+        - Type: distinctInstance
+      TaskDefinition: !Ref LoginTask
+
+  ClusterManagerTask:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: ecs-cluster-manager
+      TaskRoleArn: !Ref EcsManagementRole       
+      ContainerDefinitions:
+      - Name: manager
+        Image: deweysasser/ecs-cluster-manager:latest
+        MemoryReservation: 16
+        Essential: true
+        Environment:
+          - Name: CLUSTER
+            Value: !Ref EcsCluster
+          - Name: SERVICES
+            Value: !Join [ " ", [ !Ref ProxyService, !Ref LoginService ] ]
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref 'AWS::Region'
+
+  ClusterManagerService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      TaskDefinition: !Ref ClusterManagerTask
+
   EcsLaunchConfiguration:
     Type: "AWS::AutoScaling::LaunchConfiguration"
     Properties:
@@ -314,7 +414,7 @@ Resources:
             ECS_CLUSTER=${EcsCluster}
             EFS_FID=${!ImportValue !Sub "${Prefix}-ecs-storage-FileSystemID"}
             MOUNTPOINT=/cluster
-            NODE_TASKS="${ProxyTask} ${LoginTask}"
+            NODE_TASKS=""
             # Versions
             # Introspection -- you probably don't need to change this.
             AWS_AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)

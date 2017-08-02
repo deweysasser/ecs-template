@@ -19,8 +19,10 @@ AWS=aws --profile $(PROFILE)
 CFSTATE=$(STATE)/$(PROFILE)
 $(STATE):: $(CFSTATE)
 
+CFFILES+=$(wildcard *.cf)
+
 # Default targets
-all:: $(foreach s,$(wildcard *.cf),$(CFSTATE)/$(PREFIX)-$(notdir $s))
+all:: $(foreach s,$(CFFILES),$(CFSTATE)/$(PREFIX)-$(notdir $s))
 
 SCRIPTS=makefiles/scripts
 
@@ -93,10 +95,14 @@ info::
 	@echo PROJECT = $(PROJECT)
 	@echo AWS CLI version = $(AWSCLI_VERSION)
 	@echo PROFILE = $(PROFILE)
+	@echo CFFILES = $(CFFILES)
 
 
 test:
 	echo $(call PARAMETERS,ecs-cluster.params)
+
+
+# TODO:  make this work without the "-V" -- there is no "-V" on Mac
 
 aws-version.mk: AWSCLI_VERSION=$(shell aws --version 2>&1 | awk 'BEGIN{RS=" "; FS="/"};/aws/{print $$2}') 
 aws-version.mk:

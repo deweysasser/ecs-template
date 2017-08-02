@@ -24,7 +24,7 @@ include makefiles/external-state.mk
 
 # AWS docker magic
 include makefiles/docker.mk
-include makefiles/aws-ecr.mk
+#include makefiles/aws-ecr.mk
 include makefiles/aws-cloudformation.mk
 include makefiles/aws-ecs.mk
 
@@ -74,14 +74,14 @@ ecs-cluster.params: $(STATE)/$(PROFILE)/subnets.txt $(STATE)/$(PROFILE)/keys.txt
 
 $(STATE)/$(PROFILE)/subnets.txt: $(STATE)/$(PROFILE)/vpcs.txt
 	@echo -n "Finding Subnets..."
-	@aws --profile $(PROFILE) --output text ec2 describe-subnets --filters Name=vpc-id,Values=vpc-597fd53f --query "Subnets[*].[SubnetId]" > $@
+	@aws --profile $(PROFILE) --output text ec2 describe-subnets --filters Name=vpc-id,Values=$(file <$?) --query "Subnets[*].[SubnetId]" > $@
 	@if [ $$(wc -l < $@) -lt 3 ] ; then echo "Must have at least 3 subnets in $$(cat $<)"; exit 1; else echo $$(cat $@ | tr -d "\r");  fi
 
 $(STATE)/$(PROFILE)/vpcs.txt:
 	@echo -n Finding VPC...
 	@mkdir -p $(dir $@)
 	@aws --profile $(PROFILE) --output text ec2 describe-vpcs --query "Vpcs[*].VpcId" > $@
-	@if [ $$(wc -l < $@) -ne 1 ] ; then echo "Multiple VPCs found.  Cannot determine VPC for stack automatically"; echo "Must find one and only one VPC"; exit 1; else cat $@ ;fi
+	@if [ $$(wc -w < $@) -ne 1 ] ; then echo "Multiple VPCs found.  Cannot determine VPC for stack automatically"; echo "Must find one and only one VPC"; exit 1; else cat $@ ;fi
 
 $(STATE)/$(PROFILE)/keys.txt:
 	@echo -n Finding Keys...
