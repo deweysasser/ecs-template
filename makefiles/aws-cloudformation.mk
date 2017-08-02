@@ -101,6 +101,9 @@ info::
 test:
 	echo $(call PARAMETERS,ecs-cluster.params)
 
+
+# TODO:  make this work without the "-V" -- there is no "-V" on Mac
+
 aws-version.mk: AWSCLI_VERSION=$(shell aws --version 2>&1 | awk 'BEGIN{RS=" "; FS="/"};/aws/{print $$2}') 
 aws-version.mk:
 	@if [ $$(printf "%s\n%s" $(AWSCLI_VERSION_REQUIRED)  $(AWSCLI_VERSION) | sort -V | head -n 1) != $(AWSCLI_VERSION_REQUIRED) ] ; then \
