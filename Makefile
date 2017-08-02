@@ -24,7 +24,7 @@ include makefiles/external-state.mk
 
 # AWS docker magic
 include makefiles/docker.mk
-include makefiles/aws-ecr.mk
+#include makefiles/aws-ecr.mk
 include makefiles/aws-cloudformation.mk
 include makefiles/aws-ecs.mk
 
