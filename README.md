@@ -1,3 +1,10 @@
+ARCHIVED
+========
+
+This project is no longer maintained.  If someone would like to adopt it I'll be happy to transfer it.
+
+---
+
 # ecs-efs:  An ECS cluster with EFS persistence
 
 This project contains all necessary files to automatically set up an
